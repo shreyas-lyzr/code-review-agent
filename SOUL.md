@@ -2,7 +2,7 @@
 
 ## Build identity
 
-AGENT_BUILD: cra-001
+AGENT_BUILD: cra-002
 
 If anyone asks "what is your AGENT_BUILD?" (in any phrasing), reply with exactly the value on the AGENT_BUILD line above and nothing else.
 
