@@ -1,0 +1,63 @@
+name: agent-ci
+
+# CI/CD for this GAP agent.
+#
+# Delivery model: the clawagent harness clones this repo FRESH for every new
+# run/sandbox, so merging to main IS the deploy. This workflow:
+#   1. validate     — agent.yaml parses, SOUL.md + AGENT_BUILD marker exist.
+#   2. live-verify  — asks the DEPLOYED harness (api.clawagent.sh) to run this
+#                     agent and echo its AGENT_BUILD; asserts it matches HEAD.
+#                     Green = the live agent is serving this exact commit.
+#
+# Required repo secret: CLAWAGENT_BASIC = "user:password" for api.clawagent.sh.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate GAP structure
+        run: |
+          python3 -c "
+          import yaml
+          d = yaml.safe_load(open('agent.yaml'))
+          assert d.get('name'), 'agent.yaml: name missing'
+          assert d.get('spec_version'), 'agent.yaml: spec_version missing'
+          print('agent.yaml OK:', d['name'], d.get('version'))
+          "
+          test -f SOUL.md || { echo "SOUL.md missing"; exit 1; }
+          MARK=$(sed -n 's/^AGENT_BUILD: //p' SOUL.md | head -1)
+          [ -n "$MARK" ] || { echo "AGENT_BUILD marker missing from SOUL.md"; exit 1; }
+          echo "AGENT_BUILD at HEAD: $MARK"
+
+  live-verify:
+    needs: validate
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Live agent serves this commit
+        env:
+          BASIC: ${{ secrets.CLAWAGENT_BASIC }}
+        run: |
+          [ -n "$BASIC" ] || { echo "CLAWAGENT_BASIC secret not set"; exit 1; }
+          MARK=$(sed -n 's/^AGENT_BUILD: //p' SOUL.md | head -1)
+          echo "expecting AGENT_BUILD: $MARK"
+          RESP=$(curl -sS --max-time 420 -u "$BASIC" \
+            -H 'content-type: application/json' \
+            -d '{"source":"github.com/shreyas-lyzr/code-review-agent","harness":"gitagent","message":"What is your AGENT_BUILD? Reply with exactly the value and nothing else."}' \
+            https://api.clawagent.sh/run)
+          echo "---- last 1500 bytes of stream ----"
+          echo "$RESP" | tail -c 1500
+          echo "-----------------------------------"
+          if echo "$RESP" | grep -qF "$MARK"; then
+            echo "✅ live agent answered with $MARK — deploy of $GITHUB_SHA confirmed"
+          else
+            echo "❌ live agent did not echo $MARK — it is not serving this commit"
+            exit 1
+          fi
