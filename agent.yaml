@@ -1,7 +1,7 @@
 spec_version: "0.1.0"
-name: general-agent
-version: "0.1.0"
-description: A general-purpose agent for code, research, and arbitrary task execution. Driven via gitagent / gitclaw.
+name: code-review-agent
+version: "1.0.0"
+description: A code analysis and review agent — adversarial PR/repo reviews with a mandatory security pass (debug leftovers, secrets, dependency CVEs). Driven via gitagent / gitclaw.
 
 model:
   preferred: anthropic:claude-sonnet-4-5-20250929
@@ -9,6 +9,7 @@ model:
     temperature: 0.2
 
 skills:
+  - security-review
   - exa-research
   - pdf-export
   - read-document
