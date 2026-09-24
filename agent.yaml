@@ -10,6 +10,7 @@ model:
 
 skills:
   - security-review
+  - log-review
   - exa-research
   - pdf-export
   - read-document

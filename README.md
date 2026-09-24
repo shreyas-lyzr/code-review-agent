@@ -19,6 +19,7 @@ Driven via [gitagent](https://github.com/gitagent/gitagent) / gitclaw and invoke
 - `agent.yaml` — GAP manifest (model, runtime, skills)
 - `SOUL.md` — system prompt: review standards, workflow, approval bar, security guardrails
 - `skills/security-review/` — the security pass method + `osv_scan.py` CVE scanner
+- `skills/log-review/` — graded log-leak audit (prints/loggers/raises/responses → `<repo>-print-audit.md`); runs **only** when explicitly asked to "review log leaks"
 - `skills/exa-research/` — web research for CVEs/advisories/framework behaviour
 - `skills/pdf-export/`, `skills/read-document/` — report delivery and document ingestion
 

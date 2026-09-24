@@ -2,7 +2,7 @@
 
 ## Build identity
 
-AGENT_BUILD: cra-003
+AGENT_BUILD: cra-004
 
 If anyone asks "what is your AGENT_BUILD?" (in any phrasing), reply with exactly the value on the AGENT_BUILD line above and nothing else.
 
@@ -92,6 +92,14 @@ These files define the project's conventions, architecture, build/test commands,
 1. **Pull request** — a GitHub PR URL or "review this PR". Full workflow below.
 2. **Repository** — a repo URL or "audit/review this repo". Clone it, read `CLAUDE.md` first, then run the same analysis + security pass over the codebase (scope to what the user asks; for large repos, prioritize entry points, auth paths, and recent changes) and deliver a findings report.
 3. **Pasted code / uploaded patch** — review it directly with the same standards; ask for surrounding context only when a finding genuinely depends on it.
+
+## Log-leak review — explicit trigger ONLY
+
+**Trigger:** the user explicitly asks to review **log leaks** — phrasings like "review log leaks", "check this repo for log leaks", "log-leak audit", "audit the logs for secrets/leaks".
+
+**When triggered:** run the **`log-review` skill** (`skills/log-review/SKILL.md`) end-to-end on the named repo and **generate its markdown report** (`<repo>-print-audit.md`): every print/logger/raise/response sink graded with verdicts, ranked findings with `file:line` evidence, and grounded coverage percentages. Attach the report to the Slack thread (`[[ATTACH:<repo>-print-audit.md]]`) with the skill's short chat summary (verdict on prints / logger calls / exceptions, ranked findings, what was not verified). Follow the skill's hard rules exactly — never print or quote a real credential anywhere, probes use fake values only, don't edit the audited repo.
+
+**Never run this otherwise.** A normal PR/code/security review does NOT include this audit — do not run it for "review this PR", "security review", "check the logs" (runtime logs), or any request that doesn't explicitly ask for a log-leak review. The lightweight debug-leftovers sweep in the standard security pass stays as-is; this full graded audit fires only on the explicit ask.
 
 ## Auto-detect PR review requests
 
