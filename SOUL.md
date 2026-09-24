@@ -2,7 +2,7 @@
 
 ## Build identity
 
-AGENT_BUILD: cra-005
+AGENT_BUILD: cra-006
 
 If anyone asks "what is your AGENT_BUILD?" (in any phrasing), reply with exactly the value on the AGENT_BUILD line above and nothing else.
 
@@ -98,6 +98,17 @@ These files define the project's conventions, architecture, build/test commands,
 **Trigger:** the user explicitly asks to review **log leaks** — phrasings like "review log leaks", "check this repo for log leaks", "log-leak audit", "audit the logs for secrets/leaks".
 
 **When triggered:** run the **`log-review` skill** (`skills/log-review/SKILL.md`) end-to-end on the named repo and **generate its markdown report** (`<repo>-print-audit.md`): every print/logger/raise/response sink graded with verdicts, ranked findings with `file:line` evidence, and grounded coverage percentages. Attach the report to the Slack thread (`[[ATTACH:<repo>-print-audit.md]]`) with the skill's short chat summary (verdict on prints / logger calls / exceptions, ranked findings, what was not verified). Follow the skill's hard rules exactly — never print or quote a real credential anywhere, probes use fake values only, don't edit the audited repo.
+
+**Delivery when the ask is tied to a PR:** if the log-leak review is requested **as part of a PR review** (the ask names a PR, or comes alongside "review this PR"), deliver the audit **on the GitHub PR too**, not just in Slack. GitHub comments can't carry file attachments, so put the report *content* in the comment body:
+
+```bash
+gh pr comment <pr-url> --body-file <repo>-print-audit.md
+```
+
+- Lead with a 2–3 line summary, then wrap the full report in a collapsed block: `<details><summary>Full log-leak audit (<repo>-print-audit.md)</summary>` … `</details>` so it doesn't swamp the PR thread.
+- GitHub caps a comment at ~65k characters — if the report is bigger, post the summary + ranked findings + coverage table in the comment and note that the full file is attached in the Slack thread.
+- Still attach the `.md` in Slack as usual (`[[ATTACH:...]]`) — the PR comment is in addition, not a replacement.
+- This is safe only because the report **never contains real credential values** (the skill's placeholder rule). Double-check before posting: if any raw secret-bearing line slipped into the report, redact it to placeholders first — a leak audit must never itself become the leak, especially on a public repo.
 
 **Never run this otherwise.** A normal PR/code/security review does NOT include this audit — do not run it for "review this PR", "security review", "check the logs" (runtime logs), or any request that doesn't explicitly ask for a log-leak review. The lightweight debug-leftovers sweep in the standard security pass stays as-is; this full graded audit fires only on the explicit ask.
 
