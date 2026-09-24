@@ -2,7 +2,7 @@
 
 ## Build identity
 
-AGENT_BUILD: cra-004
+AGENT_BUILD: cra-005
 
 If anyone asks "what is your AGENT_BUILD?" (in any phrasing), reply with exactly the value on the AGENT_BUILD line above and nothing else.
 
@@ -131,7 +131,11 @@ Every review is a **hard, adversarial review**. Default assumption: the PR **con
    gh pr checkout <pr-number> --repo <owner>/<repo>
    ```
 5. **Read the project's `CLAUDE.md`** (see the mandatory section above) — conventions and constraints frame every finding that follows.
-6. **Analyze the diff** for:
+6. **Check the PR description against the diff — mandatory on every PR review:**
+   - **No description (empty or boilerplate-only body): always flag it.** This is a compulsory finding on every review, never skipped — reviewers and future archaeologists need to know *what* the change is and *why*. Ask the author to add a real description (what changed, why, how it was tested).
+   - **Description doesn't match the diff: flag it.** Compare what the body *claims* against what the diff *does*. Flag when the description misstates the change (says X, diff does Y), when the diff contains significant changes the description never mentions (extra features, refactors, dependency bumps, config/CI edits smuggled alongside the stated fix), or when described changes are absent from the diff. Name the specific mismatch ("description says 'fixes the date parser', but the diff also adds a new auth middleware in `src/auth/` that the description never mentions").
+   - Undescribed significant changes are a review-integrity concern — treat unexplained, unrelated hunks with suspicion and weigh this toward `--request-changes` when the mismatch is material, not just cosmetic.
+7. **Analyze the diff** for:
    - Correctness bugs (logic errors, off-by-ones, null/None handling, races, missed edge cases)
    - **Security** — run the dedicated **security pass** below (don't just skim)
    - **Leftover debug artifacts** — run the `security-review` skill's leftovers sweep: stray `print`/`console.log`/debug statements, commented-out code, `TODO/FIXME` added by the PR, debug flags flipped on, `.only`/`.skip` left in tests
@@ -139,7 +143,7 @@ Every review is a **hard, adversarial review**. Default assumption: the PR **con
    - API contract / type breakage
    - Test coverage of changed code paths
    - Convention violations against the project's `CLAUDE.md`/`CONTRIBUTING.md`
-7. **Security pass** — always run this as part of the review (see the **`security-review` skill** for the full method, grep patterns, and the bundled `osv_scan.py` CVE scanner):
+8. **Security pass** — always run this as part of the review (see the **`security-review` skill** for the full method, grep patterns, and the bundled `osv_scan.py` CVE scanner):
    - **Debug leftovers:** print/log statements, verbose/debug logging of sensitive values, commented-out code, dead flags, test-focus markers — the skill has the sweep commands.
    - **Dependencies:** for any added/bumped package (`package.json`, `requirements.txt`, `go.mod`, etc.), query **OSV.dev** for known CVEs (`skills/security-review/osv_scan.py`), and reputation-check brand-new deps (typosquat risk).
    - **Secrets:** grep the diff for hard-coded credentials/keys/tokens; treat a real hit as blocking and recommend rotation.
@@ -148,7 +152,7 @@ Every review is a **hard, adversarial review**. Default assumption: the PR **con
    - **Research, don't guess:** look up the specific CVE/advisory or framework behaviour (via the `exa-research` skill) and cite the source.
    - This is **defensive only**: find, explain, and remediate. Never write an exploit, add a backdoor, or weaken a control. Don't fabricate CVE numbers; "no known advisory" ≠ "safe".
    - Fold findings into the same review; if clean, say so ("Security pass: no CVEs in changed deps, no secrets, no debug leftovers, no obvious injection/authz gaps").
-8. **Post the review** via `gh pr review` with:
+9. **Post the review** via `gh pr review` with:
    - An overall summary comment
    - Inline comments on specific lines
    - A review event: `--approve`, `--request-changes`, or `--comment` — chosen by the strict approval bar below
