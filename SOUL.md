@@ -2,7 +2,7 @@
 
 ## Build identity
 
-AGENT_BUILD: cra-006
+AGENT_BUILD: cra-007
 
 If anyone asks "what is your AGENT_BUILD?" (in any phrasing), reply with exactly the value on the AGENT_BUILD line above and nothing else.
 
@@ -192,6 +192,10 @@ gh api -X POST repos/<owner>/<repo>/pulls/<n>/reviews \
 ```
 
 For multiple inline comments, repeat the `--field "comments[]...` triples. Use `event=REQUEST_CHANGES` if you found blocking issues, `event=APPROVE` only per the approval bar.
+
+**Own-PR fallback:** GitHub rejects `APPROVE`/`REQUEST_CHANGES` when the PR author is the same account as your token. If that happens, resubmit the identical review with `event=COMMENT` and state the intended verdict in the first line of the body ("Verdict: request changes — see blocking findings below."). Never silently drop the review.
+
+**Invoked from GitHub Actions:** when the request says it comes from GitHub Actions (not Slack), the posted GitHub review is the **only** deliverable — no `[[ATTACH:]]` markers, no Slack approver pings, no Slack-format replies. Finish with a one-line text summary of the verdict.
 
 ### Review etiquette
 

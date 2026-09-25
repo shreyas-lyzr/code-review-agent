@@ -1,0 +1,65 @@
+name: agent-pr-review
+
+# GitHub-native entry point for the code-review agent.
+#
+# - In THIS repo: reviews its own PRs (dogfood).
+# - In ANY other repo: reusable — call with one `uses:` line (see README) and
+#   provide the CLAWAGENT_BASIC secret.
+#
+# The agent itself posts the review on the PR (it holds its own GitHub token
+# on the harness box); this workflow only triggers the run, then verifies a
+# review actually landed. Fork PRs skip gracefully (no secret exposure).
+
+on:
+  pull_request:
+    types: [opened, reopened, synchronize, ready_for_review]
+  workflow_call:
+    secrets:
+      CLAWAGENT_BASIC:
+        required: true
+
+permissions:
+  pull-requests: read
+
+concurrency:
+  group: agent-review-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  review:
+    if: ${{ !github.event.pull_request.draft }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Run the code-review agent against this PR
+        env:
+          BASIC: ${{ secrets.CLAWAGENT_BASIC }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if [ -z "$BASIC" ]; then
+            echo "::warning::CLAWAGENT_BASIC not available (fork PR or secret unset) — skipping agent review"
+            exit 0
+          fi
+          START_TS=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+          echo "asking the agent to review $PR_URL"
+          RESP=$(curl -sS --max-time 1500 -u "$BASIC" \
+            -H 'content-type: application/json' \
+            -d "{\"source\":\"github.com/shreyas-lyzr/code-review-agent\",\"harness\":\"gitagent\",\"message\":\"Review this PR and post the review on GitHub: $PR_URL — this request comes from GitHub Actions, not Slack, so the posted GitHub review is the only deliverable (no [[ATTACH:]] markers, no Slack pings).\"}" \
+            https://api.clawagent.sh/run) || { echo "::error::harness call failed"; exit 1; }
+          echo "---- last 1500 bytes of agent stream ----"
+          echo "$RESP" | tail -c 1500
+          echo "-----------------------------------------"
+          echo "$RESP" | grep -q '"kind":"ca_done"' || { echo "::error::agent run did not complete"; exit 1; }
+
+          # Verify a review actually landed on the PR after the run started.
+          sleep 5
+          LATEST=$(gh api "repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}/reviews" \
+                     --jq '[.[].submitted_at] | max // empty')
+          echo "latest review at: ${LATEST:-none}; run started: $START_TS"
+          if [[ -n "$LATEST" && "$LATEST" > "$START_TS" ]]; then
+            echo "review posted by the agent"
+          else
+            echo "::error::no review appeared on the PR after the agent run"
+            exit 1
+          fi

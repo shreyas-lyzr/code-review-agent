@@ -23,6 +23,26 @@ Driven via [gitagent](https://github.com/gitagent/gitagent) / gitclaw and invoke
 - `skills/exa-research/` — web research for CVEs/advisories/framework behaviour
 - `skills/pdf-export/`, `skills/read-document/` — report delivery and document ingestion
 
+## GitHub integration — auto-review every PR
+
+`.github/workflows/pr-review.yml` is a **reusable workflow**: on every PR (opened / reopened / synchronize / ready-for-review, drafts skipped) it calls the deployed harness, the agent reviews the PR and posts the review directly on GitHub, and the job fails if no review lands. Fork PRs skip gracefully (secrets aren't exposed to forks).
+
+To adopt it in **any repo**, add `.github/workflows/code-review.yml`:
+
+```yaml
+name: code-review
+on:
+  pull_request:
+    types: [opened, reopened, synchronize, ready_for_review]
+jobs:
+  review:
+    uses: shreyas-lyzr/code-review-agent/.github/workflows/pr-review.yml@main
+    secrets:
+      CLAWAGENT_BASIC: ${{ secrets.CLAWAGENT_BASIC }}
+```
+
+…and set the `CLAWAGENT_BASIC` secret (`user:password` for `api.clawagent.sh`) on the repo — or once at the org level so every repo inherits it. Optionally make the `review` check required in branch protection to gate merges on the agent's review landing.
+
 ## CI/CD
 
 `.github/workflows/agent-ci.yml` runs on every push:
