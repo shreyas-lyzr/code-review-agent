@@ -50,7 +50,7 @@ jobs:
           echo "---- last 1500 bytes of agent stream ----"
           echo "$RESP" | tail -c 1500
           echo "-----------------------------------------"
-          echo "$RESP" | grep -q '"kind":"ca_done"' || { echo "::error::agent run did not complete"; exit 1; }
+          echo "$RESP" | grep -q '^event: ca_done' || { echo "::error::agent run did not complete"; exit 1; }
 
           # Verify a review actually landed on the PR after the run started.
           sleep 5
